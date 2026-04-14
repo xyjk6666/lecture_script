@@ -12,7 +12,7 @@ TARGET_TIME = datetime.datetime(2026, 4, 14, 19, 0, 0)
 
 
 BASE_URL = "https://ehall.seu.edu.cn/gsapp/sys/jzxxtjapp/hdyy"
-CHECK_URL = f"{BASE_URL}/appiontCheck.do"
+#CHECK_URL = f"{BASE_URL}/appiontCheck.do"
 VCODE_URL = f"{BASE_URL}/vcode.do"
 SAVE_URL = f"{BASE_URL}/yySave.do"
 
@@ -32,14 +32,21 @@ def auto_task_flow():
     print(f"脚本已启动，等待到达设定时间: {TARGET_TIME}")
     while True:
         now = datetime.datetime.now()
-        if now >= TARGET_TIME:
-            print(f"时间到！当前时间: {now.strftime('%H:%M:%S.%f')}，开始抢...")
+        delta = (TARGET_TIME - now).total_seconds()
+        if delta <= 0:
+            print(f"时间到，当前时间: {now.strftime('%H:%M:%S.%f')}，开始抢！")
             break
-        time.sleep(0.01)
+        elif delta > 1:
+            time.sleep(0.5)
+        elif delta > 0.1:
+            time.sleep(0.01)
+        else:
+            pass
 
     count = 10
     while count>0:
         count = count - 1
+        """
         print("[1/3]发送状态校验请求...")
         try:
             check_payload = {"wid": WID}
@@ -52,11 +59,12 @@ def auto_task_flow():
         except Exception as e:
             print(f"校验请求异常 (可忽略): {e}")
             continue
+        """
         print("[2/3] 获取并识别验证码...")
         captcha_text = ""
         try:
             vcode_payload = {"_": int(time.time() * 1000)}
-            vcode_resp = session.post(VCODE_URL, data=vcode_payload, timeout=10)
+            vcode_resp = session.post(VCODE_URL, data=vcode_payload, timeout=8)
             resp_json = vcode_resp.json()
             if resp_json.get("success") == True:
                 full_base64_str = resp_json.get("result")
@@ -66,6 +74,7 @@ def auto_task_flow():
                 print(f"OCR 识别结果: {captcha_text}")
             else:
                 print("获取验证码失败，服务器返回了不成功的状态。")
+                continue
         except Exception as e:
             print(f"获取验证码失败: {e}")
             continue
@@ -78,7 +87,7 @@ def auto_task_flow():
             "paramJson": json.dumps(inner_data)
         }
         try:
-            final_resp = session.post(SAVE_URL, data=save_payload, timeout=15)
+            final_resp = session.post(SAVE_URL, data=save_payload, timeout=10)
             if not final_resp.text.strip():
                 print("报错")
                 continue
