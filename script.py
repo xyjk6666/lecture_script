@@ -8,7 +8,7 @@ import json
 #配置cookie和讲座id，时间
 COOKIE = ""
 WID = ""
-TARGET_TIME = datetime.datetime(2026, 4, 14, 19, 0, 0)
+TARGET_TIME = datetime.datetime(2026, 4, 14, 18, 59, 59,950000)
 
 
 BASE_URL = "https://ehall.seu.edu.cn/gsapp/sys/jzxxtjapp/hdyy"

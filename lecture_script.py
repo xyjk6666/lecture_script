@@ -7,10 +7,10 @@ import datetime
 import base64
 import json
 
-#配置cookie和讲座id，时间
+#配置cookie和讲座id，时间，线程数
 COOKIE = ""
 WID = ""
-TARGET_TIME = datetime.datetime(2026, 4, 14, 19, 0, 0)
+TARGET_TIME = datetime.datetime(2026, 4, 14, 18, 59, 59,950000)
 THREAD_COUNT = 3
 
 
