@@ -8,7 +8,7 @@ import json
 #配置cookie和讲座id，时间
 COOKIE = ""
 WID = ""
-TARGET_TIME = datetime.datetime(2026, 4, 13, 19, 0, 0)
+TARGET_TIME = datetime.datetime(2026, 4, 14, 19, 0, 0)
 
 
 BASE_URL = "https://ehall.seu.edu.cn/gsapp/sys/jzxxtjapp/hdyy"
@@ -38,14 +38,12 @@ def auto_task_flow():
         time.sleep(0.01)
 
     count = 10
-    while True:
-        if count <= 0 :
-            break
+    while count>0:
         count = count - 1
         print("[1/3]发送状态校验请求...")
         try:
             check_payload = {"wid": WID}
-            first_resp=session.post(CHECK_URL, data=check_payload, timeout=3)
+            first_resp=session.post(CHECK_URL, data=check_payload, timeout=10)
             first_json=first_resp.json()
             if first_json.get("success") == True:
                 print("状态校验成功")
@@ -53,11 +51,12 @@ def auto_task_flow():
                 print("状态校验失败")
         except Exception as e:
             print(f"校验请求异常 (可忽略): {e}")
+            continue
         print("[2/3] 获取并识别验证码...")
         captcha_text = ""
         try:
             vcode_payload = {"_": int(time.time() * 1000)}
-            vcode_resp = session.post(VCODE_URL, data=vcode_payload, timeout=3)
+            vcode_resp = session.post(VCODE_URL, data=vcode_payload, timeout=10)
             resp_json = vcode_resp.json()
             if resp_json.get("success") == True:
                 full_base64_str = resp_json.get("result")
@@ -69,6 +68,7 @@ def auto_task_flow():
                 print("获取验证码失败，服务器返回了不成功的状态。")
         except Exception as e:
             print(f"获取验证码失败: {e}")
+            continue
         print("[3/3] 发送最终保存请求...")
         inner_data = {
             "HD_WID": WID,
@@ -78,7 +78,7 @@ def auto_task_flow():
             "paramJson": json.dumps(inner_data)
         }
         try:
-            final_resp = session.post(SAVE_URL, data=save_payload, timeout=5)
+            final_resp = session.post(SAVE_URL, data=save_payload, timeout=15)
             if not final_resp.text.strip():
                 print("报错")
                 continue
