@@ -10,7 +10,7 @@ import json
 #配置cookie和讲座id，时间，线程数
 COOKIE = ""
 WID = ""
-TARGET_TIME = datetime.datetime(2026, 4, 14, 18, 59, 59,950000)
+TARGET_TIME = datetime.datetime(2026, 4, 15, 18, 59, 59,950000)
 THREAD_COUNT = 3
 
 
@@ -56,6 +56,9 @@ def single_task_flow(thread_id):
             else:
                 continue
         except Exception as e:
+            continue
+        if len(captcha_text) != 4 or not captcha_text.isdigit():
+            print("验证码识别明显有误，重新获取...")
             continue
 
         #发送最终保存请求

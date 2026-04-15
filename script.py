@@ -8,7 +8,7 @@ import json
 #配置cookie和讲座id，时间
 COOKIE = ""
 WID = ""
-TARGET_TIME = datetime.datetime(2026, 4, 14, 18, 59, 59,950000)
+TARGET_TIME = datetime.datetime(2026, 4, 15, 18, 59, 59,950000)
 
 
 BASE_URL = "https://ehall.seu.edu.cn/gsapp/sys/jzxxtjapp/hdyy"
@@ -43,28 +43,14 @@ def auto_task_flow():
         else:
             pass
 
-    count = 10
+    count = 15
     while count>0:
-        count = count - 1
-        """
-        print("[1/3]发送状态校验请求...")
-        try:
-            check_payload = {"wid": WID}
-            first_resp=session.post(CHECK_URL, data=check_payload, timeout=10)
-            first_json=first_resp.json()
-            if first_json.get("success") == True:
-                print("状态校验成功")
-            else:
-                print("状态校验失败")
-        except Exception as e:
-            print(f"校验请求异常 (可忽略): {e}")
-            continue
-        """
-        print("[2/3] 获取并识别验证码...")
+        count -= 1
+        print(f"第{15-count}次：获取并识别验证码...")
         captcha_text = ""
         try:
             vcode_payload = {"_": int(time.time() * 1000)}
-            vcode_resp = session.post(VCODE_URL, data=vcode_payload, timeout=8)
+            vcode_resp = session.post(VCODE_URL, data=vcode_payload, timeout=6)
             resp_json = vcode_resp.json()
             if resp_json.get("success") == True:
                 full_base64_str = resp_json.get("result")
@@ -73,12 +59,15 @@ def auto_task_flow():
                 captcha_text = ocr.classification(img_bytes)
                 print(f"OCR 识别结果: {captcha_text}")
             else:
-                print("获取验证码失败，服务器返回了不成功的状态。")
+                print("验证码接口未返回成功状态")
                 continue
         except Exception as e:
             print(f"获取验证码失败: {e}")
             continue
-        print("[3/3] 发送最终保存请求...")
+        if len(captcha_text) != 4 or not captcha_text.isdigit():
+            print("验证码识别明显有误，重新获取...")
+            continue
+        print("发送最终保存请求...")
         inner_data = {
             "HD_WID": WID,
             "vcode": captcha_text
@@ -87,7 +76,7 @@ def auto_task_flow():
             "paramJson": json.dumps(inner_data)
         }
         try:
-            final_resp = session.post(SAVE_URL, data=save_payload, timeout=10)
+            final_resp = session.post(SAVE_URL, data=save_payload, timeout=8)
             if not final_resp.text.strip():
                 print("报错")
                 continue
