@@ -1,4 +1,4 @@
-script.py：单线程版本。  lecture_script.py：多线程版本(会有验证码覆盖风险，不推荐)
+script.py：抢单个。  lecture_script.py：串行抢多个
 
 进入对应网页后，按F12进入开发者模式，点击“网络”，清除一下请求日志
 

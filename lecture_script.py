@@ -9,10 +9,9 @@ import json
 
 #配置cookie和讲座id，时间，线程数
 COOKIE = ""
-WID = ""
+WID = [""]
 TARGET_TIME = datetime.datetime(2026, 4, 15, 18, 59, 59,950000)
-THREAD_COUNT = 3
-
+mutex = threading.Lock()
 
 BASE_URL = "https://ehall.seu.edu.cn/gsapp/sys/jzxxtjapp/hdyy"
 #CHECK_URL = f"{BASE_URL}/appiontCheck.do"
@@ -26,69 +25,69 @@ HEADERS = {
     "Accept": "application/json, text/javascript, */*; q=0.01"
 }
 
-is_success = False
 ocr = ddddocr.DdddOcr(show_ad=False)
 start_gun = threading.Event()
 
-def single_task_flow(thread_id):
+def single_task_flow(thread_id,WID_index):
     global is_success
     session = requests.Session()
     session.headers.update(HEADERS)
 
-    print(f"[线程 {thread_id}] 已在起跑线就位，等待发令枪...")
+    print(f"[线程 {thread_id}] 已在起跑线就位，负责抢第{WID_index}个，等待发令枪...")
     start_gun.wait()
 
-    count = 10
-    while count > 0 and not is_success:
-        count -= 1
-        print(f"[线程 {thread_id}] 发起第 {10 - count} 次冲击...")
-        #获取验证码
-        captcha_text = ""
-        try:
-            vcode_payload = {"_": int(time.time() * 1000)}
-            vcode_resp = session.post(VCODE_URL, data=vcode_payload, timeout=8)
-            resp_json = vcode_resp.json()
-            if resp_json.get("success") == True:
-                clean_base64 = resp_json.get("result").split(",")[1]
-                img_bytes = base64.b64decode(clean_base64)
-                captcha_text = ocr.classification(img_bytes)
-                print(f"[线程 {thread_id}] OCR 识别结果: {captcha_text}")
-            else:
+    with mutex:
+        count = 10
+        while count > 0:
+            count -= 1
+            print(f"[线程 {thread_id}] 发起第 {10 - count} 次冲击...")
+            # 获取验证码
+            captcha_text = ""
+            try:
+                vcode_payload = {"_": int(time.time() * 1000)}
+                vcode_resp = session.post(VCODE_URL, data=vcode_payload, timeout=6)
+                resp_json = vcode_resp.json()
+                if resp_json.get("success") == True:
+                    clean_base64 = resp_json.get("result").split(",")[1]
+                    img_bytes = base64.b64decode(clean_base64)
+                    captcha_text = ocr.classification(img_bytes)
+                    print(f"[线程 {thread_id}] OCR 识别结果: {captcha_text}")
+                else:
+                    continue
+            except Exception as e:
                 continue
-        except Exception as e:
-            continue
-        if len(captcha_text) != 4 or not captcha_text.isdigit():
-            print("验证码识别明显有误，重新获取...")
-            continue
-
-        #发送最终保存请求
-        inner_data = {
-            "HD_WID": WID,
-            "vcode": captcha_text
-        }
-        save_payload = {"paramJson": json.dumps(inner_data)}
-
-        try:
-            final_resp = session.post(SAVE_URL, data=save_payload, timeout=10)
-            if not final_resp.text.strip():
+            if len(captcha_text) != 4 or not captcha_text.isdigit():
+                print("验证码识别明显有误，重新获取...")
                 continue
-            final_json = final_resp.json()
-            if final_json.get("code") == 200 and final_json.get("success") == True:
-                print(f"[线程 {thread_id}] 服务器返回成功，预约已锁定！")
-                is_success = True
-                break
-            else:
-                print(f"[线程 {thread_id}] 预约未成功: {final_json}")
-        except Exception as e:
-            continue
+
+            # 发送最终保存请求
+            inner_data = {
+                "HD_WID": WID[WID_index],
+                "vcode": captcha_text
+            }
+            save_payload = {"paramJson": json.dumps(inner_data)}
+
+            try:
+                final_resp = session.post(SAVE_URL, data=save_payload, timeout=8)
+                if not final_resp.text.strip():
+                    continue
+                final_json = final_resp.json()
+                if final_json.get("code") == 200 and final_json.get("success") == True:
+                    print(f"[线程 {thread_id}] 服务器返回成功，预约已锁定！")
+                    break
+                else:
+                    print(f"[线程 {thread_id}] 预约未成功: {final_json}")
+            except Exception as e:
+                print(f"最终保持请求出异常:{e}")
+                continue
 
 
 def main():
     print(f"脚本已启动，等待到达设定时间: {TARGET_TIME}")
 
     threads = []
-    for i in range(THREAD_COUNT):
-        t = threading.Thread(target=single_task_flow, args=(i + 1,))
+    for i in range(len(WID)):
+        t = threading.Thread(target=single_task_flow, args=(i + 1,i))
         threads.append(t)
         t.start()
 
