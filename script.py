@@ -47,7 +47,7 @@ def auto_task_flow():
     count = 20
     while count>0:
         count -= 1
-        logs.append(f"第{15-count}次：获取并识别验证码...")
+        logs.append(f"第{20-count}次：获取并识别验证码...")
         captcha_text = ""
         try:
             vcode_payload = {"_": int(time.time() * 1000)}

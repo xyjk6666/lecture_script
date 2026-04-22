@@ -38,10 +38,10 @@ def single_task_flow(thread_id,WID_index):
     start_gun.wait()
 
     with mutex:
-        count = 10
+        count = 15
         while count > 0:
             count -= 1
-            logs.append(f"[线程 {thread_id}] 发起第 {10 - count} 次冲击...")
+            logs.append(f"[线程 {thread_id}] 发起第 {15 - count} 次冲击...")
             # 获取验证码
             captcha_text = ""
             try:
