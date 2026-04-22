@@ -7,11 +7,13 @@ import datetime
 import base64
 import json
 
-#配置cookie和讲座id，时间，线程数
+#配置cookie和讲座id，时间
 COOKIE = ""
 WID = [""]
-TARGET_TIME = datetime.datetime(2026, 4, 15, 18, 59, 59,950000)
+TARGET_TIME = datetime.datetime(2026, 4, 22, 18, 59, 59,950000)
 mutex = threading.Lock()
+
+logs=[]
 
 BASE_URL = "https://ehall.seu.edu.cn/gsapp/sys/jzxxtjapp/hdyy"
 #CHECK_URL = f"{BASE_URL}/appiontCheck.do"
@@ -29,10 +31,9 @@ ocr = ddddocr.DdddOcr(show_ad=False)
 start_gun = threading.Event()
 
 def single_task_flow(thread_id,WID_index):
-    global is_success
     session = requests.Session()
     session.headers.update(HEADERS)
-
+    session.trust_env = False
     print(f"[线程 {thread_id}] 已在起跑线就位，负责抢第{WID_index}个，等待发令枪...")
     start_gun.wait()
 
@@ -40,7 +41,7 @@ def single_task_flow(thread_id,WID_index):
         count = 10
         while count > 0:
             count -= 1
-            print(f"[线程 {thread_id}] 发起第 {10 - count} 次冲击...")
+            logs.append(f"[线程 {thread_id}] 发起第 {10 - count} 次冲击...")
             # 获取验证码
             captcha_text = ""
             try:
@@ -51,13 +52,15 @@ def single_task_flow(thread_id,WID_index):
                     clean_base64 = resp_json.get("result").split(",")[1]
                     img_bytes = base64.b64decode(clean_base64)
                     captcha_text = ocr.classification(img_bytes)
-                    print(f"[线程 {thread_id}] OCR 识别结果: {captcha_text}")
+                    logs.append(f"[线程 {thread_id}] OCR 识别结果: {captcha_text}")
                 else:
+                    logs.append(f"获取验证码失败{resp_json}")
                     continue
             except Exception as e:
+                logs.append(f"获取验证码异常{e}")
                 continue
             if len(captcha_text) != 4 or not captcha_text.isdigit():
-                print("验证码识别明显有误，重新获取...")
+                logs.append("验证码识别明显有误，重新获取...")
                 continue
 
             # 发送最终保存请求
@@ -67,18 +70,22 @@ def single_task_flow(thread_id,WID_index):
             }
             save_payload = {"paramJson": json.dumps(inner_data)}
 
+            final_resp=None
             try:
                 final_resp = session.post(SAVE_URL, data=save_payload, timeout=8)
                 if not final_resp.text.strip():
+                    logs.append(f"报错{final_resp}")
                     continue
                 final_json = final_resp.json()
                 if final_json.get("code") == 200 and final_json.get("success") == True:
-                    print(f"[线程 {thread_id}] 服务器返回成功，预约已锁定！")
+                    logs.append(f"[线程 {thread_id}] 服务器返回成功，预约已锁定！")
                     break
                 else:
-                    print(f"[线程 {thread_id}] 预约未成功: {final_json}")
+                    logs.append(f"[线程 {thread_id}] 预约未成功: {final_json}")
             except Exception as e:
-                print(f"最终保持请求出异常:{e}")
+                logs.append(f"最终保存请求出异常:{e}")
+                if final_resp is not None:
+                    logs.append(f"final_resp:{final_resp.text[:200]}")
                 continue
 
 
@@ -108,6 +115,8 @@ def main():
 
     for t in threads:
         t.join()
+    for log in logs:
+        print(log)
 
 
 if __name__ == "__main__":

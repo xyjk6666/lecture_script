@@ -8,8 +8,9 @@ import json
 #配置cookie和讲座id，时间
 COOKIE = ""
 WID = ""
-TARGET_TIME = datetime.datetime(2026, 4, 15, 18, 59, 59,950000)
+TARGET_TIME = datetime.datetime(2026, 4, 16, 18, 59, 59,950000)
 
+logs=[]
 
 BASE_URL = "https://ehall.seu.edu.cn/gsapp/sys/jzxxtjapp/hdyy"
 #CHECK_URL = f"{BASE_URL}/appiontCheck.do"
@@ -28,7 +29,7 @@ def auto_task_flow():
     ocr = ddddocr.DdddOcr(show_ad=False)
     session = requests.Session()
     session.headers.update(HEADERS)
-
+    session.trust_env = False
     print(f"脚本已启动，等待到达设定时间: {TARGET_TIME}")
     while True:
         now = datetime.datetime.now()
@@ -43,10 +44,10 @@ def auto_task_flow():
         else:
             pass
 
-    count = 15
+    count = 20
     while count>0:
         count -= 1
-        print(f"第{15-count}次：获取并识别验证码...")
+        logs.append(f"第{15-count}次：获取并识别验证码...")
         captcha_text = ""
         try:
             vcode_payload = {"_": int(time.time() * 1000)}
@@ -57,17 +58,18 @@ def auto_task_flow():
                 clean_base64 = full_base64_str.split(",")[1]
                 img_bytes = base64.b64decode(clean_base64)
                 captcha_text = ocr.classification(img_bytes)
-                print(f"OCR 识别结果: {captcha_text}")
+                logs.append(f"OCR 识别结果: {captcha_text}")
             else:
-                print("验证码接口未返回成功状态")
+                logs.append(f"验证码接口未返回成功状态{vcode_resp.text}")
                 continue
         except Exception as e:
-            print(f"获取验证码失败: {e}")
+            logs.append(f"获取验证码失败: {e}")
             continue
         if len(captcha_text) != 4 or not captcha_text.isdigit():
-            print("验证码识别明显有误，重新获取...")
+            logs.append("验证码识别明显有误，重新获取...")
             continue
-        print("发送最终保存请求...")
+
+        #发送最终保存请求
         inner_data = {
             "HD_WID": WID,
             "vcode": captcha_text
@@ -75,19 +77,25 @@ def auto_task_flow():
         save_payload = {
             "paramJson": json.dumps(inner_data)
         }
+        final_resp=None
         try:
             final_resp = session.post(SAVE_URL, data=save_payload, timeout=8)
             if not final_resp.text.strip():
-                print("报错")
+                logs.append(f"报错{final_resp}")
                 continue
             final_json = final_resp.json()
             if final_json.get("code") == 200 and final_json.get("success") == True:
-                print("服务器返回成功，预约已锁定！")
+                logs.append("服务器返回成功，预约已锁定！")
                 break
             else:
-                print(f"预约未能成功，服务器返回: {final_json}")
+                logs.append(f"预约未能成功，服务器返回: {final_json}")
         except Exception as e:
-            print(f"最终提交异常: {e}")
+            logs.append(f"最终提交异常: {e}")
+            if final_resp is not None:
+                logs.append(f"final_resp:{final_resp.text[:200]}")
+
+    for log in logs:
+        print(log)
 
 
 if __name__ == "__main__":
